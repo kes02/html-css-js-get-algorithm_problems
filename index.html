@@ -229,9 +229,10 @@
         }
       }
       
+      const langQuery = `lang:${rule.lang.toLowerCase()}`;
+
       const excludedQuery = generatedProblemIds.map(id => `-id:${id}`).join(' ');
-      
-      const fullQuery = `${tierQuery} ${tagQuery} ${unsolvedQuery} ${excludedQuery}`.trim();
+      const fullQuery = `${tierQuery} ${tagQuery} ${langQuery} ${unsolvedQuery} ${excludedQuery}`.trim();
       const encodedQuery = encodeURIComponent(fullQuery);
       
       // const targetUrl = `https://solved.ac/api/v3/search/problem?query=${encodedQuery}&sort=random`;
