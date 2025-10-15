@@ -1,2 +1,3 @@
-# Create_Algorithm_Problem
-구글 스프레드 시트를 활용하여 자동으로 문제를 출제하고, 이를 Notion 페이지에 등록할 수 있는 기능
+# HTML_CSS_JS_GET_Algorithm_Problem
+
+간단한 웹 구현으로 알고리즘 조건에 맞는 BOJ 문제를 랜덤으로 입력 받기
