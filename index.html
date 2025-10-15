@@ -234,10 +234,11 @@
       const fullQuery = `${tierQuery} ${tagQuery} ${unsolvedQuery} ${excludedQuery}`.trim();
       const encodedQuery = encodeURIComponent(fullQuery);
       
-      const targetUrl = `https://solved.ac/api/v3/search/problem?query=${encodedQuery}&sort=random`;
-      const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-      const apiUrl = proxyUrl + targetUrl;
-      
+      // const targetUrl = `https://solved.ac/api/v3/search/problem?query=${encodedQuery}&sort=random`;
+      // const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+      // const apiUrl = proxyUrl + targetUrl;
+      const apiUrl = `https://boj-proxy-server.vercel.app/api/proxy?query=${encodedQuery}&sort=random`;
+    
       try {
         const response = await fetch(apiUrl, { headers: { 'Accept': 'application/json' } });
         if (!response.ok) {

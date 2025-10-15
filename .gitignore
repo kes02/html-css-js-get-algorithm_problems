@@ -1,0 +1,9 @@
+# Dependencies
+/node_modules
+
+.DS_Store
+
+# (기타 로그 파일, 빌드 결과물, 환경 변수 파일 등)
+.env
+/dist
+*.log
