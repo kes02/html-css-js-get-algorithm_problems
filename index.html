@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <title>BOJ 스터디 문제 출제</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', 'Noto Sans KR', sans-serif; }
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    /* 체크박스 커스텀 스타일 */
+    .user-checkbox:checked {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+    }
+    .user-checkbox:checked::before {
+        content: '✓';
+        color: white;
+        font-size: 0.75rem;
+        line-height: 1rem;
+        text-align: center;
+        display: block;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-4 sm:p-6 md:p-8">
+
+  <div class="max-w-4xl mx-auto bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
+    <header class="mb-6 border-b pb-4">
+      <h1 class="text-3xl font-bold text-gray-900">BOJ 스터디 문제 출제 🤖</h1>
+      <p class="text-gray-600 mt-2">스터디원들이 풀지 않은 새로운 문제를 자동으로 추천합니다.</p>
+    </header>
+
+    <main>
+      <section id="user-management" class="mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-3">1. 스터디원 관리</h2>
+        <div class="bg-gray-50 p-4 rounded-lg border">
+          <div class="flex flex-col sm:flex-row gap-2 mb-4">
+            <input type="text" id="new-user-id" class="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" placeholder="백준 ID 입력">
+            <button id="addUserBtn" class="bg-blue-500 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-600 transition-colors">추가</button>
+          </div>
+          <div id="user-list-container">
+            <p class="text-sm text-gray-500">등록된 스터디원 목록 (ID를 선택하여 정답이 아닌 문제만을 출제할 수 있습니다.):</p>
+            <ul id="user-list" class="mt-2 flex flex-wrap gap-2"></ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="problem-generator" class="mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-3">2. 문제 출제 조건 설정</h2>
+        <div id="rules-container" class="space-y-4">
+        </div>
+        <div class="mt-4">
+          <button id="addRuleBtn" class="w-full bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-md hover:bg-gray-300 transition-colors">
+            + 조건 추가하기
+          </button>
+        </div>
+        <datalist id="tag-suggestions"></datalist>
+      </section>
+
+      <section class="flex items-center justify-end space-x-3 pt-4 border-t">
+        <div id="loader" class="loader hidden"></div>
+        <button id="generateBtn" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200">
+          문제 생성하기
+        </button>
+      </section>
+
+      <div id="results-container" class="mt-8"></div>
+      <div id="status" class="mt-4 text-center font-medium"></div>
+    </main>
+  </div>
+
+<script>
+  // DOM 요소 캐싱
+  const addUserBtn = document.getElementById('addUserBtn');
+  const newUserInput = document.getElementById('new-user-id');
+  const userList = document.getElementById('user-list');
+  const rulesContainer = document.getElementById('rules-container');
+  const addRuleBtn = document.getElementById('addRuleBtn');
+  const generateBtn = document.getElementById('generateBtn');
+  const loader = document.getElementById('loader');
+  const resultsContainer = document.getElementById('results-container');
+  const statusDiv = document.getElementById('status');
+  
+  const TIER_MAP = {
+    0: "Unrated", 1: "Bronze V", 2: "Bronze IV", 3: "Bronze III", 4: "Bronze II", 5: "Bronze I",
+    6: "Silver V", 7: "Silver IV", 8: "Silver III", 9: "Silver II", 10: "Silver I",
+    11: "Gold V", 12: "Gold IV", 13: "Gold III", 14: "Gold II", 15: "Gold I",
+    16: "Platinum V", 17: "Platinum IV", 18: "Platinum III", 19: "Platinum II", 20: "Platinum I",
+    21: "Diamond V", 22: "Diamond IV", 23: "Diamond III", 24: "Diamond II", 25: "Diamond I",
+    26: "Ruby V", 27: "Ruby IV", 28: "Ruby III", 29: "Ruby II", 30: "Ruby I", 31: "Master"
+  };
+  const TIER_LEVELS = Object.entries(TIER_MAP);
+
+  // --- 사용자 관리 (localStorage 사용) ---
+  const getUsersFromStorage = () => JSON.parse(localStorage.getItem('bojStudyUsers')) || [];
+  const saveUsersToStorage = (users) => localStorage.setItem('bojStudyUsers', JSON.stringify(users));
+
+  function renderUserList() {
+    const users = getUsersFromStorage();
+    userList.innerHTML = users.length > 0
+      ? users.map(user => `
+          <li class="flex items-center cursor-pointer rounded-full transition-colors bg-blue-100 text-blue-800 has-[:checked]:bg-blue-500 has-[:checked]:text-white">
+            <label class="flex items-center text-sm font-semibold px-2.5 py-1">
+              <input type="checkbox" data-id="${user}" class="user-checkbox appearance-none w-4 h-4 border-2 border-blue-300 rounded-sm mr-2" checked>
+              <span>${user}</span>
+            </label>
+            <button data-id="${user}" class="delete-user-btn ml-1 mr-2 text-blue-600 hover:text-red-500 has-[:checked]:text-white">&times;</button>
+          </li>`).join('')
+      : `<li class="text-gray-500 text-sm">등록된 사용자가 없습니다.</li>`;
+  }
+  
+  addUserBtn.addEventListener('click', () => {
+    const userId = newUserInput.value.trim();
+    if (!userId) return alert('추가할 ID를 입력하세요.');
+    
+    const users = getUsersFromStorage();
+    if (users.includes(userId)) return alert('이미 등록된 ID입니다.');
+
+    users.push(userId);
+    saveUsersToStorage(users);
+    renderUserList();
+    newUserInput.value = '';
+  });
+
+  userList.addEventListener('click', (e) => {
+    if (e.target.classList.contains('delete-user-btn')) {
+      const userId = e.target.dataset.id;
+      if (confirm(`'${userId}'를 정말 삭제하시겠습니까?`)) {
+        let users = getUsersFromStorage();
+        users = users.filter(user => user !== userId);
+        saveUsersToStorage(users);
+        renderUserList();
+      }
+    }
+  });
+
+  // --- 조건 관리 ---
+  let ruleCounter = 0;
+  function createNewRule() {
+    ruleCounter++;
+    const ruleElement = document.createElement('div');
+    ruleElement.className = 'rule-item p-4 border rounded-lg bg-white grid grid-cols-12 gap-x-4 gap-y-3 items-center';
+    
+    const tierOptions = TIER_LEVELS.map(([level, name]) => `<option value="${level}">${name}</option>`).join('');
+
+    ruleElement.innerHTML = `
+      <div class="col-span-12 sm:col-span-6 flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-600 w-12">난이도:</label>
+        <select class="tier-from-select flex-grow px-2 py-2 border border-gray-300 rounded-md text-sm">${tierOptions}</select>
+        <span class="text-gray-500">~</span>
+        <select class="tier-to-select flex-grow px-2 py-2 border border-gray-300 rounded-md text-sm">${tierOptions}</select>
+      </div>
+      <div class="col-span-12 sm:col-span-6 flex items-center gap-2">
+         <label class="text-sm font-medium text-gray-600 w-12">언어:</label>
+         <select class="lang-select w-full px-2 py-2 border border-gray-300 rounded-md text-sm">
+            <option value="Ko" selected>한국어</option>
+            <option value="En">English</option>
+            <option value="Ja">日本語</option>
+         </select>
+      </div>
+      <div class="col-span-12 flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-600 w-12">알고리즘:</label>
+        <input type="text" class="topic-input flex-grow px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="태그 (쉼표로 구분 ex.string, dfs)" list="tag-suggestions">
+      </div>
+       <div class="col-span-12 sm:col-span-6 flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-600 w-12">검색:</label>
+        <div class="flex items-center space-x-4">
+            <label class="flex items-center text-sm"><input type="radio" name="tag-logic-${ruleCounter}" value="AND" class="mr-1" checked>모두 포함 (AND)</label>
+            <label class="flex items-center text-sm"><input type="radio" name="tag-logic-${ruleCounter}" value="OR" class="mr-1">하나라도 포함 (OR)</label>
+        </div>
+      </div>
+      <div class="col-span-10 sm:col-span-5 flex items-center gap-2">
+        <label class="text-sm font-medium text-gray-600 w-12">문제 수:</label>
+        <input type="number" class="count-input w-full px-3 py-2 border border-gray-300 rounded-md text-sm" value="1" min="1">
+      </div>
+      <div class="col-span-2 sm:col-span-1 flex justify-end">
+        <button class="remove-rule-btn bg-red-100 text-red-700 hover:bg-red-200 font-bold p-2 rounded-full leading-none">&times;</button>
+      </div>
+    `;
+    rulesContainer.appendChild(ruleElement);
+    
+    ruleElement.querySelector('.tier-from-select').value = '6'; // Silver V
+    ruleElement.querySelector('.tier-to-select').value = '15'; // Gold I
+
+    ruleElement.querySelector('.remove-rule-btn').addEventListener('click', () => ruleElement.remove());
+  }
+  
+  addRuleBtn.addEventListener('click', createNewRule);
+  
+  // --- 문제 생성 및 결과 표시 ---
+  function setLoading(isLoading) {
+    loader.classList.toggle('hidden', !isLoading);
+    generateBtn.disabled = isLoading;
+    generateBtn.classList.toggle('opacity-50', isLoading);
+    generateBtn.classList.toggle('cursor-not-allowed', isLoading);
+    statusDiv.textContent = isLoading ? '조건에 맞는 문제를 찾고 있습니다...' : '';
+  }
+  
+  // Fisher-Yates Shuffle
+  function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+  }
+
+  async function findProblemsForRule(rule, unsolvedQuery, generatedProblemIds) {
+      const tierQuery = `tier:${rule.tierFrom}..${rule.tierTo}`;
+      const tags = rule.topic.split(',').map(t => t.trim()).filter(Boolean);
+      
+      let tagQuery = '';
+      if (tags.length > 0) {
+        if (rule.tagLogic === 'OR') {
+            tagQuery = `(${tags.map(t => `tag:${t}`).join('|')})`;
+        } else { // AND
+            tagQuery = tags.map(t => `tag:${t}`).join(' ');
+        }
+      }
+      
+      const excludedQuery = generatedProblemIds.map(id => `-id:${id}`).join(' ');
+      
+      const fullQuery = `${tierQuery} ${tagQuery} ${unsolvedQuery} ${excludedQuery}`.trim();
+      const encodedQuery = encodeURIComponent(fullQuery);
+      
+      const targetUrl = `https://solved.ac/api/v3/search/problem?query=${encodedQuery}&sort=random`;
+      const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+      const apiUrl = proxyUrl + targetUrl;
+      
+      try {
+        const response = await fetch(apiUrl, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.status}`);
+        }
+        const data = await response.json();
+        const problems = data.items || [];
+        return shuffleArray(problems).slice(0, rule.count);
+      } catch (error) {
+        console.error(`Fetching problems failed for query "${fullQuery}":`, error);
+        statusDiv.textContent = `API 요청 실패. 브라우저 콘솔(F12)을 확인해주세요.`;
+        return [];
+      }
+  }
+
+  generateBtn.addEventListener('click', async () => {
+    setLoading(true);
+    resultsContainer.innerHTML = '';
+    
+    const selectedUsers = Array.from(document.querySelectorAll('.user-checkbox:checked'))
+                               .map(checkbox => checkbox.dataset.id);
+
+    if (selectedUsers.length === 0) {
+        alert('문제를 필터링할 스터디원을 한 명 이상 선택해주세요.');
+        setLoading(false);
+        return;
+    }
+    const unsolvedQuery = selectedUsers.map(u => `-solved_by:${u}`).join(' ');
+
+    const ruleItems = document.querySelectorAll('#rules-container .rule-item');
+    if (ruleItems.length === 0) {
+        alert('하나 이상의 출제 조건을 설정해주세요.');
+        setLoading(false);
+        return;
+    }
+
+    const problemGroups = [];
+    const generatedProblemIds = new Set();
+
+    for (const item of ruleItems) {
+        const count = parseInt(item.querySelector('.count-input').value) || 0;
+        if (count > 0) {
+            const rule = {
+              tierFrom: item.querySelector('.tier-from-select').value,
+              tierTo: item.querySelector('.tier-to-select').value,
+              topic: item.querySelector('.topic-input').value.trim(),
+              tagLogic: item.querySelector('input[type="radio"]:checked').value,
+              lang: item.querySelector('.lang-select').value,
+              count: count
+            };
+            statusDiv.textContent = `[${TIER_MAP[rule.tierFrom]}~${TIER_MAP[rule.tierTo]}] 조건으로 검색 중...`;
+            const problems = await findProblemsForRule(rule, unsolvedQuery, Array.from(generatedProblemIds));
+            
+            problems.forEach(p => generatedProblemIds.add(p.problemId));
+            problemGroups.push({ rule, problems });
+        }
+    }
+    
+    displayResults(problemGroups);
+    setLoading(false);
+  });
+
+  function displayResults(problemGroups) {
+      if (!problemGroups.some(g => g.problems.length > 0)) {
+        resultsContainer.innerHTML = `<p class="text-center text-red-500 font-semibold">조건에 맞는 문제를 찾지 못했습니다. 다른 조건으로 시도해보세요.</p>`;
+        return;
+      }
+
+      let html = '';
+      problemGroups.forEach((group, index) => {
+        if (group.problems.length > 0) {
+          const { rule, problems } = group;
+          const langLower = rule.lang.toLowerCase();
+          const titleKey = `title${rule.lang}`;
+
+          const problemsForGroup = problems.map(p => ({
+            problemId: p.problemId,
+            title: p[titleKey] || p.titleKo, // Fallback to Korean title
+            level: TIER_MAP[p.level] || 'Unknown',
+            tags: p.tags.map(t => t.displayNames.find(dn => dn.language === langLower)?.name || t.key).join(', '),
+            link: `https://www.acmicpc.net/problem/${p.problemId}`
+          }));
+
+          html += `
+            <div class="mb-6">
+              <h3 class="text-lg font-semibold text-gray-800 mb-3">
+                결과 ${index + 1}: <span class="font-normal text-gray-600">${TIER_MAP[rule.tierFrom]} ~ ${TIER_MAP[rule.tierTo]} / ${rule.topic || '랜덤'} / ${rule.count}문제</span>
+              </h3>
+              <textarea readonly class="w-full h-40 p-3 font-mono text-sm border rounded-md bg-gray-50">${problemsForGroup.map(p => 
+                `${p.problemId}. ${p.title}\n- 난이도: ${p.level}\n- 태그: ${p.tags}\n- 링크: ${p.link}`
+              ).join('\n\n')}</textarea>
+              <button class="copy-btn mt-2 bg-green-500 text-white font-bold py-1 px-3 rounded-md hover:bg-green-600 text-sm">
+                이 그룹 복사하기
+              </button>
+            </div>
+          `;
+        }
+      });
+      
+      resultsContainer.innerHTML = html || `<p class="text-center text-red-500 font-semibold">조건에 맞는 문제를 찾지 못했습니다.</p>`;
+      
+      document.querySelectorAll('.copy-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const textarea = e.target.previousElementSibling;
+          navigator.clipboard.writeText(textarea.value).then(() => {
+            const originalText = e.target.textContent;
+            e.target.textContent = '복사 완료!';
+            setTimeout(() => { e.target.textContent = originalText; }, 2000);
+          });
+        });
+      });
+  }
+
+  // --- 초기화 ---
+  function loadTags() {
+    const commonTags = ["math", "implementation", "greedy", "string", "data_structures", "graphs", "dp", "bruteforcing", "sorting", "geometry", "segtree", "trees", "bfs", "dfs", "binary_search", "prefix_sum", "two_pointer", "backtracking", "number_theory", "combinatorics", "bitmask"];
+    const datalist = document.getElementById('tag-suggestions');
+    datalist.innerHTML = commonTags.map(tag => `<option value="${tag}"></option>`).join('');
+  }
+
+  window.addEventListener('load', () => {
+    renderUserList();
+    loadTags();
+    createNewRule();
+  });
+</script>
+
+</body>
+</html>
