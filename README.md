@@ -2,7 +2,7 @@
 
 알고리즘 스터디 그룹을 위한 백준(BOJ) 온라인 저지 문제 자동 추천 서비스입니다. 스터디원들이 아직 풀지 않은 문제를 조건에 맞게 추천하여, 매번 새로운 문제를 찾는 수고를 덜어줍니다.
 
-**🔗 Link: https://kes02.github.io/html-css-js-get-algorithm_problems/
+🔗 Link: https://kes02.github.io/html-css-js-get-algorithm_problems/
 
 ## ✨ 주요 기능
 
