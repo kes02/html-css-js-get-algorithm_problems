@@ -28,7 +28,7 @@
 
 -----
 
-## архитектура: Vercel을 이용한 CORS 문제 해결 🌐
+## Vercel을 이용한 CORS 문제 해결 🌐
 
 이 프로젝트는 GitHub Pages에 배포된 정적(Static) 웹사이트에서 `solved.ac` API를 직접 호출할 때 발생하는 브라우저의 **CORS(Cross-Origin Resource Sharing) 정책** 문제를 해결해야 했습니다.
 
@@ -73,12 +73,14 @@
 1.  이 저장소를 클론(clone)합니다.
 2.  `index.html` 파일의 `apiUrl` 변수 값을 자신의 Vercel 프록시 서버 주소로 변경합니다.
 3.  저장소를 GitHub Pages에 배포합니다.
+4.  Actions에서 배포된 GitHub Pages 링크를 확인합니다.
 
 ### Backend (Vercel Proxy)
 
-1.  프록시 서버용 `api/proxy.js`와 `package.json` 파일을 준비합니다.
-2.  새로운 GitHub 저장소에 업로드합니다.
-3.  Vercel에 해당 저장소를 연결하여 배포합니다.
+1.  `npm install axios`를 설치합니다.
+2.  프록시 서버용 `api/proxy.js`와 `package.json` 파일을 준비합니다.
+3.  새로운 GitHub 저장소에 업로드합니다.
+4.  Vercel에 해당 저장소를 연결하여 배포합니다.
 
 -----
 
